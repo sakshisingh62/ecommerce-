@@ -1,0 +1,191 @@
+{
+  "info": {
+    "name": "Ecommerce API - Tests",
+    "_postman_id": "ecommerce-api-tests-001",
+    "description": "Automated test collection for the ecommerce-api. Includes auth and product CRUD with checks and environment variable usage.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000" },
+    { "key": "userEmail", "value": "testuser@example.com" },
+    { "key": "userPassword", "value": "password123" },
+    { "key": "userName", "value": "Test User" },
+    { "key": "token", "value": "" },
+    { "key": "productId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register - create user",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{userName}}\",\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api","auth","register"] }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// generate unique email to avoid duplicate errors",
+                  "var t = Date.now();",
+                  "pm.environment.set('userEmail', 'testuser+' + t + '@example.com');",
+                  "pm.environment.set('userPassword', 'password123');",
+                  "pm.environment.set('userName', 'Test User');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('response has user object', function () { var json = pm.response.json(); pm.expect(json).to.have.property('user'); pm.expect(json.user).to.have.property('email', pm.environment.get('userEmail')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - obtain token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api","auth","login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.test('token present', function () { pm.expect(json).to.have.property('token'); });",
+                  "if (json.token) { pm.environment.set('token', json.token); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Health - Auth (login status)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/products", "host": ["{{baseUrl}}"], "path": ["api","products"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('products endpoint reachable', function () { pm.response.to.have.status(200); });"] }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Create Product (protected)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sample Product\",\n  \"description\": \"A product created by Postman tests\",\n  \"price\": 25.5,\n  \"category\": \"testing\",\n  \"stock\": 100\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/products", "host": ["{{baseUrl}}"], "path": ["api","products"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "var json = pm.response.json();",
+                  "pm.test('response has _id', function () { pm.expect(json).to.have.property('_id'); });",
+                  "if (json._id) { pm.environment.set('productId', json._id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Products (list)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/products", "host": ["{{baseUrl}}"], "path": ["api","products"] }
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('status is 200', function () { pm.response.to.have.status(200); });","pm.test('response is array', function () { pm.expect(pm.response.json()).to.be.an('array'); });"] } }
+          ]
+        },
+        {
+          "name": "Get Single Product",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/products/{{productId}}", "host": ["{{baseUrl}}"], "path": ["api","products","{{productId}}"] }
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('status is 200', function () { pm.response.to.have.status(200); });","var json = pm.response.json(); pm.test('has _id', function () { pm.expect(json).to.have.property('_id'); });"] } }
+          ]
+        },
+        {
+          "name": "Update Product (protected)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{ \"name\": \"Updated Product Name\" }" },
+            "url": { "raw": "{{baseUrl}}/api/products/{{productId}}", "host": ["{{baseUrl}}"], "path": ["api","products","{{productId}}"] }
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('status is 200', function () { pm.response.to.have.status(200); });","pm.test('name updated', function () { var json = pm.response.json(); pm.expect(json).to.have.property('name', 'Updated Product Name'); });"] } }
+          ]
+        },
+        {
+          "name": "Delete Product (protected)",
+          "request": {
+            "method": "DELETE",
+            "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": { "raw": "{{baseUrl}}/api/products/{{productId}}", "host": ["{{baseUrl}}"], "path": ["api","products","{{productId}}"] }
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('status is 200', function () { pm.response.to.have.status(200); });","pm.test('delete message', function () { var json = pm.response.json(); pm.expect(json).to.have.property('message'); });"] } }
+          ]
+        },
+        {
+          "name": "Health - Products list (ping)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/products", "host": ["{{baseUrl}}"], "path": ["api","products"] }
+          },
+          "event": [ { "listen": "test", "script": { "exec": ["pm.test('products endpoint reachable', function () { pm.response.to.have.status(200); });"] } } ]
+        }
+      ]
+    }
+  ]
+}
