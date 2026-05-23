@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const connectDB = async () => {
     const primaryUri = process.env.MONGO_URI || process.env.MONGODB_URI;
-    const fallbackUri = process.env.MONGO_FALLBACK_URI || "mongodb://127.0.0.1:27017/ecommerce-api";
+    const fallbackUri = process.env.MONGO_FALLBACK_URI || "mongodb://127.0.0.1:27017/ecommerce";
 
     if (!primaryUri) {
         throw new Error("Missing MongoDB connection string. Set MONGO_URI or MONGODB_URI in .env.");
